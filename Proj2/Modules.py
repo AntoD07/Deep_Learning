@@ -64,7 +64,7 @@ class Linear(Module):
         self.out = empty(size_out)
     def forward(self, inp):
         self.inp = inp
-        self.out = self.weights.value @ self.inp
+        self.out = self.weights.value @ self.inp + self.bias.value
         return self.out
     def backward(self, gradwrtoutput):
         self.weights.grad += 0 #TODO
