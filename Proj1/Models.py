@@ -44,6 +44,31 @@ class ResNetBlock(nn.Module):
 
         return y
     
+
+class Net(nn.Module):
+    #https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
+    def __init__(self):
+        super(Net, self).__init__()
+        self.conv1 = nn.Conv2d(1, 4, 3)
+        self.conv2 = nn.Conv2d(4, 8, 3)
+        self.conv3 = nn.Conv2d(8, 16, 3)
+        self.conv4 = nn.Conv2d(16, 32, 3)
+        self.fc1 = nn.Linear(32 * 6 * 6, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 10)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4(x))
+        #print(x.size())
+        x = x.view(-1, 32 * 6 * 6)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+    
 class ResNet(nn.Module):
 
     def __init__(self, nb_residual_blocks, nb_channels = 10,
@@ -83,27 +108,27 @@ class PairSetsModel(nn.Module):
                  skip_connections = True, batch_normalization = True):
         super(PairSetsModel, self).__init__()
         
-        build_resnet = lambda : \
+        '''build_resnet = lambda : \
             ResNet(nb_residual_blocks = nb_residual_blocks,
                    nb_channels = 1,
                    kernel_size = kernel_size,
                    nb_classes = nb_classes,
                    skip_connections = skip_connections,
-                   batch_normalization = batch_normalization)
-            
-        self.resnet1 = build_resnet()
-        self.resnet2 = self.resnet1 if weight_sharing else build_resnet()
+                   batch_normalization = batch_normalization)'''
+        self.nb_classes = nb_classes
+        self.resnet1 = Net()
+        self.resnet2 = self.resnet1 if weight_sharing else Net()
         
-        self.fc = nn.Linear(2*nb_classes, 1)
+        self.fc1 = nn.Linear(nb_classes**2, 1)
 
     def forward(self, x):
         a,b,c,d = x.size()
         x1 = x[:,0,:,:].view((a, 1, c, d))
         x2 = x[:,1,:,:].view((a, 1, c, d))
-        x1_p = self.resnet1(x1)
-        x2_p = self.resnet2(x2)
-        # print (x1_p.size()) torch.Size([5, 10])
-        x_p = torch.cat((x1_p, x2_p), dim = 1)
-        # print (x_p.size()) torch.Size([5, 20])
-        p = self.fc(x_p)
+        x1_p = torch.softmax(self.resnet1(x1),1)
+        x2_p = torch.softmax(self.resnet2(x2),1)
+        
+        x_p = torch.bmm(x1_p[:,:,None], x2_p[:,None,:])
+        p = self.fc1(x_p.view(-1, self.nb_classes**2))
+        
         return p, x1_p, x2_p
