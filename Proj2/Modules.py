@@ -95,7 +95,7 @@ class TanH(Module):
     def param(self):
         return []
     
-class Sequential(Module): # a changer
+class Sequential(Module):
     def __init__(self, *module_list):
         if len(module_list) == 1 :
             self.module_list = module_list
