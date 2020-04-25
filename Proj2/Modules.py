@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Apr  1 08:42:08 2020
-
-@author: Martin
-"""
-
 from torch import empty
 from math import tanh
 
@@ -27,7 +20,6 @@ class Module(object):
         ----------
         *gradwrtoutput : TYPE
             DESCRIPTION.
-
         Returns
         -------
         None.
@@ -49,8 +41,7 @@ class Module(object):
 
 class Parameters(object):    
     def __init__(self, *size):
-        self.value = empty(size)
-        self.value[:] = 1 #TODO: initialize weights (xavier initialization?)
+        self.value = torch.randn(size)#TODO: initialize weights (xavier initialization?)
         self.grad = empty(size)
         self.grad[:] = 0
     def as_pair(self):
@@ -62,9 +53,14 @@ class Linear(Module):
         self.bias = Parameters(size_out)
         self.inp = empty(size_in)
         self.out = empty(size_out)
-    def forward(self, inp):
+        self.size_in = size_in
+        self.size_out= size_out
+    def forward(self, inp, Xavier=False):
         self.inp = inp
-        self.out = self.weights.value @ self.inp + self.bias.value
+        if Xavier == False : 
+            self.out =  self.inp @ self.weights.value/self.size_in**.5 + self.bias.value
+        else :
+            self.out =  self.inp @ self.weights.value/(self.size_in+self.size_out)**.5 + self.bias.value
         return self.out
     def backward(self, gradwrtoutput):
         self.weights.grad += 0 #TODO
@@ -74,7 +70,7 @@ class Linear(Module):
         return [param.as_pair() for param in [self.weights, self.bias]] 
     
 class ReLu(Module):
-    def __init__(self, size):
+    def __init__(self, *size):
         self.inp = empty(size)
         self.out = empty(size)
     def forward(self, inp):
@@ -87,7 +83,7 @@ class ReLu(Module):
         return []
 
 class TanH(Module):
-    def __init__(self, size):
+    def __init__(self, *size):
         self.inp = empty(size)
         self.out = empty(size)
     def forward(self, inp):
@@ -99,16 +95,30 @@ class TanH(Module):
     def param(self):
         return []
     
-class Sequential(Module):
-    def __init__(self, module1, module2):
-        self.module1 = module1
-        self.module2 = module2
+class Sequential(Module): # a changer
+    def __init__(self, *module_list):
+        if len(module_list) == 1 :
+            self.module_list = module_list
+        else :
+            self.module_list = []
+            for module in module_list :
+                self.module_list.append(module)
+        self.inp = module_list[0].inp
+        self.out = module_list[-1].out
     def forward(self, inp):
-        return self.module2.forward(self.module1.forward(inp))
+        self.inp = inp
+        x = inp
+        for i in self.module_list :
+            x = self.module_list[i].forward(x)
+        self.out = x
+        return self.out
     def backward(self, gradwrtoutput):
-        return self.module1.backward(self.module2.backward(inp))
+        x = gradwrtoutput
+        for i in module_list : 
+            x = self.module_list[i].backward(x)
+        return x
     def param(self):
-        return self.module1.param() + self.module2.param()
+        return [module.param() for module in self.module_list]
     
 class LossMSE(object):
     def compute(self, inp, groundtruth):
@@ -118,9 +128,4 @@ class LossMSE(object):
         out /= inp.shape[1]
     def gradient(self, inp, groundtruth):
         return 2 * (inp-groundtruth) / inp.shape[1]
-    
-        
-    
-   
-        
         
