@@ -41,7 +41,7 @@ aux_use = [False, True, False, True]
 
 optimizers = [optim.Adam(models[i].parameters(), lr = .01) for i in range (4)]
  
-for n in range(0, 1000): 
+for n in range(0, 25): 
     
     #training
     epoch_loss = [0., 0., 0., 0.]
