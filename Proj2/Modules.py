@@ -1,6 +1,7 @@
 from torch import empty, Tensor, randn, manual_seed
-from math import tanh
+from math import tanh, sqrt, log, exp
 
+#torch.set_grad_enabled(False)
 
 class Module(object):
     '''
@@ -8,7 +9,7 @@ class Module(object):
     '''
     
     def _init_(self):
-        self.parameters = []
+        self.parameters = [] #initialization of list of parameters for a module 
     
     
     def forward(self , *inp):
@@ -57,16 +58,22 @@ class Parameters(object):
     An option of initialization with manual seed is provided.
     
     '''
-    def __init__(self, *size,manual_seed=False):
-        if manual_seed==True :
+    def __init__(self, *size, w, Xavier=False, man_seed=False):
+        if man_seed==True :
             manual_seed(7)
-        self.value = randn(size)#TODO: initialize weights (xavier initialization?)
+        if w == True:
+            #sigma=1.
+            if Xavier==True:
+                sigma = sqrt(2/(size[0]+size[1]))
+            self.value = empty(size).normal_(mean=0,std=1)
+        else :
+            self.value = empty(size).normal_(mean=0,std=1)
         self.grad = empty(size)
         self.grad[:] = 0
-    def as_pair(self):
+    def as_pair(self): # returns a tuple (value, gradient)
         return self.value, self.grad
 
-# ------------------------ MODULES OF NEURAL NETWORK -------------------------           
+# ---------------------------- MODULES OF NEURAL NETWORK -----------------------          
 
 class Linear(Module):
     '''
@@ -75,29 +82,25 @@ class Linear(Module):
     
     
     '''
-    def __init__(self, size_in, size_out, manual_seed=False):
+    def __init__(self, size_in, size_out, Xavier=False, man_seed=False):
         super().__init__()    
-        self.weights = Parameters(size_in, size_out, manual_seed=manual_seed)
-        self.bias = Parameters(size_out, manual_seed=manual_seed)
+        self.weights = Parameters(size_in, size_out, w=True, Xavier=Xavier, man_seed=man_seed) # weight parameters of the layer(inherit Parameter initialization)
+        self.bias = Parameters(size_out, w=False, Xavier=False, man_seed=man_seed)
         self.inp = empty(size_in)
         self.out = empty(size_out)
-        self.size_in = size_in
+        self.size_in = size_in 
         self.size_out= size_out
         self.parameters = [self.weights, self.bias]
-    def forward(self, inp, Xavier=False):
+    def forward(self, inp):
         self.inp = inp
-        if Xavier == False : 
-            self.out =  self.inp @ self.weights.value/self.size_in**.5 + self.bias.value
-        else :
-            self.out =  self.inp @ self.weights.value/(self.size_in+self.size_out)**.5 + self.bias.value
+        self.out =  self.inp @ self.weights.value + self.bias.value
         return self.out
     def backward(self, gradwrtoutput):
         self.weights.grad +=   self.inp[:,None] @ gradwrtoutput[None,:]
-        self.bias.grad += gradwrtoutput #TODO
+        self.bias.grad += gradwrtoutput 
         return self.weights.value @ gradwrtoutput
     def param(self):
         return [param.as_pair() for param in self.parameters] 
-
             
 class ReLu(Module):
     def __init__(self, *size):
@@ -107,10 +110,10 @@ class ReLu(Module):
         self.parameters=[]
     def forward(self, inp):
         self.inp = inp
-        self.out = max(0,self.inp)
+        self.out = Tensor([max(0,i) for i in self.inp])
         return self.out
     def backward(self, gradwrtoutput):
-        return (self.inp>0) @ gradwrtoutput
+        return Tensor([int(i>=0) for i in self.inp]) * gradwrtoutput
 
 class TanH(Module):
     def __init__(self, *size):
@@ -124,6 +127,22 @@ class TanH(Module):
         return self.out
     def backward(self, gradwrtoutput):
         return Tensor([(1-tanh(i)**2) for i in self.inp]) * gradwrtoutput
+
+class Softmax(Module):
+    def __init__(self, *size):
+        super().__init__()
+        self.inp = empty(size)
+        self.out = empty(size)
+        self.parameters=[]
+    def forward(self, inp):
+        self.inp = inp
+        M = self.inp.max()
+        N = sum([exp(i-M) for i in self.inp])
+        self.out = Tensor([exp(i-M)/N for i in self.inp])
+        return self.out
+    def backward(self, gradwrtoutput):
+        A = -self.out[:,None]@self.out[None,:] + Tensor([[self.out[i]*int(i==j) for i in range(len(self.out))] for j in range(len(self.out))]) 
+        return A @ gradwrtoutput
 
             
 # -------------------------------------SEQUENTIAL--------------------------------            
@@ -156,9 +175,11 @@ class Sequential(Module):
         return x
     def param(self):
         return [param.as_pair() for param in self.parameters] 
+
+# define another class for large networks??? 
             
             
-#----------------------- LOSS function -----------------------------------------
+#---------------------------------- LOSS function --------------------------------
             
             
 class LossMSE(object):
@@ -171,17 +192,29 @@ class LossMSE(object):
     def gradient(self, inp, groundtruth):
         return 2 * (inp-groundtruth) / inp.shape[0]    
     
+class CrossEntropyLoss(object):
+    def compute(self, inp, groundtruth):
+        out = 0
+        for k in range(len(inp)):
+            out += -log(inp[k],2)*groundtruth[k]
+        return out
+    def gradient(self, inp, groundtruth):
+        return Tensor([-groundtruth[k]/inp[k] for k in range(len(inp))])
+    
 #---------------------------------------SGD---------------------------------------
 
 class SGD() :
-    def __init__(self, params, lr):
+    def __init__(self, params, lr, momentum=0.5):
         if lr < 0.0 :
             raise ValueError("Invalid learning rate: {}".format(lr))
         self.params = params
         self.lr = lr
-    def step(self) :
-        #print (self.params)
-        #print (self.params[0].value)
+        self.momentum=momentum
+        self.Vt = []
         for i in range(len(self.params)):
-            self.params[i].value = self.params[i].value-self.lr*self.params[i].grad
+            self.Vt.append(self.params[i].grad.clone())
+    def step(self) :
+        for i in range(len(self.params)):
+            self.Vt[i] = self.Vt[i]*self.momentum - self.lr*self.params[i].grad
+            self.params[i].value = self.params[i].value + self.Vt[i]
             self.params[i].grad[:] = 0
