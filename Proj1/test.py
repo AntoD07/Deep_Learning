@@ -13,7 +13,7 @@ n = 1000
 batch_size = 50
 num_workers = 0
 epochs = 25
-rounds = 1
+rounds = 15
 
 # History
 accuracy_history_rounds = []
@@ -75,7 +75,6 @@ for rnd in range(rounds):
                 optimizer = optimizers[i]   
                 # Forward
                 prediction, digit1, digit2 = model(image1, image2)       
-                #print(prediction, target)     
                 loss = criterion(prediction, target)
                 accuracy = ((prediction>0.5)==target).sum()
                 epoch_accuracy[i]+=accuracy.item()  
@@ -88,6 +87,7 @@ for rnd in range(rounds):
                 optimizer.zero_grad() 
                 loss.backward()          
                 optimizer.step()
+        # Update history
         accuracy_history.append(epoch_accuracy)
         loss_history.append(epoch_loss)
         
@@ -114,32 +114,33 @@ for rnd in range(rounds):
                     aux_loss = criterion_aux(digit1, class1) 
                     aux_loss += criterion_aux(digit2, class2)
                     loss += aux_loss
+        # Update history
         accuracy_history_test.append(epoch_accuracy)
         loss_history_test.append(epoch_loss)
         
+        # Plot learned weights
         if visual and rnd == rounds-1:            
             for m in range(4):
                 model_name = ["Weight Sharing", "Weight Sharing, Aux_loss", "Nothing", "Aux_loss"][m]
                 weights_1st_layer = list([module for module in models[m].modules()][3].weight.data)
                 weights_filters_1st_layer = [list(weights_1st_layer[k])[0] for k in range(4)]
                 figure = plt.figure(figsize=(2, 2))
-                plt.title(f'{epoch+1}, "{model_name}"')
-                #plt.title(f'Filters of 1st layer of 1st DigitNet after {epoch+1} epoch(s), last round, model "{model_name}"')
+                plt.title(f'Filters of 1st layer of 1st DigitNet after {epoch+1} epoch(s), last round, model "{model_name}"')
                 plt.axis('off')
                 for k in range(4):
                     ax = figure.add_subplot(2,2,k+1)
                     ax.imshow(weights_filters_1st_layer[k])
                     ax.axis('off')
-                plt.show()
-        
+                plt.show()        
+    # Update history
     accuracy_history_rounds.append(accuracy_history)
     loss_history_rounds.append(loss_history)
     accuracy_history_test_rounds.append(accuracy_history_test)
     loss_history_test_rounds.append(loss_history_test)
     
-colors = ['red', 'blue', 'green', 'orange']
-    
+colors = ['red', 'blue', 'green', 'orange']    
 def plot(history_rounds, name, minus=False, log=False):
+    # Compute mean and std based on the different rounds
     mean = [[0 for model in range(4)] for epoch in range(epochs)]
     std = [[0 for model in range(4)] for epoch in range(epochs)]
     for epoch in range(len(history_rounds[0])):
@@ -149,20 +150,23 @@ def plot(history_rounds, name, minus=False, log=False):
                 std[epoch][model] = statistics.stdev([history_rounds[rnd][epoch][model] for rnd in range(rounds)])
             else :
                 std[epoch][model] = 0
+    #Plot
     for model in range(4):
+        # Plot the mean
         y_mean = [mean[epoch][model] for epoch in range(epochs)]
         if minus: y_mean = [n-y_mean[epoch] for epoch in range(epochs)]
+        plt.plot(range(epochs), y_mean, color=colors[model])
+        if log: plt.yscale('log')
+        # Plot the std  
         y_std = [std[epoch][model] for epoch in range(epochs)]
         down = [y_mean[i] - y_std[i] for i in range(epochs)]
         up = [y_mean[i] + y_std[i] for i in range(epochs)]
-        plt.plot(range(epochs), y_mean, color=colors[model])
-        if log: plt.yscale('log')
         plt.fill_between(range(epochs), up, down, color=colors[model], alpha=.3)
+    # Legend and axes
     plt.legend(["Weight Sharing", "Weight Sharing, Aux_loss", "", "Aux_loss"])
     plt.xlabel('Epochs')
     plt.ylabel(name)
     plt.show()
-
 
 for log in [True, False] :
     plot(accuracy_history_rounds, 'Train Accuracy', minus=False, log=log)
@@ -171,6 +175,3 @@ for log in [True, False] :
     plot(accuracy_history_test_rounds, 'Test Accuracy', minus=False, log=log)
     plot(accuracy_history_test_rounds, 'Test Errors', minus=True, log=log)
     plot(loss_history_test_rounds, 'Test Loss', minus=False, log=log)
-
-    
-
