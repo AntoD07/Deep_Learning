@@ -105,6 +105,7 @@ for rnd in range(rounds):
         test_errors_history.append(test_errors)
         test_loss_history.append(test_loss)
 
+    # Update history
     train_errors_history_rounds.append(train_errors_history)
     train_loss_history_rounds.append(train_loss_history)
     test_errors_history_rounds.append(test_errors_history)
@@ -137,4 +138,5 @@ for plot in plots :
     plt.legend(["Train", "Test"])
     plt.xlabel('Epochs')
     plt.ylabel(name)
+    plt.yticks([0.05*k for k in range(10)])
     plt.show()
