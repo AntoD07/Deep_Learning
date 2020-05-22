@@ -16,23 +16,23 @@ class Module(object):
         '''
         Parameters
         ----------
-        *inp : TYPE
+        *inp : tensor
             input.
             
         Returns
         -------
-        a tensor or a tuple of tensors.
+        a tensor.
         '''
         raise  NotImplementedError
     def backward(self , *gradwrtoutput):
         '''   
         Parameters
         ----------
-        *gradwrtoutput : TYPE
-            DESCRIPTION.
+        *gradwrtoutput : tensor
+            the gradient with respect to the output.
         Returns
         -------
-        None.
+        a tensor.
         '''
         raise  NotImplementedError
     def param(self):
