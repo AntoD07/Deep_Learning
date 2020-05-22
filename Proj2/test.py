@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from torch import rand, norm, Tensor, sign, manual_seed
 from math import pi, sqrt
+import statistics
 from Modules import Sequential, Linear, TanH, Softmax, LossMSE, CrossEntropyLoss, SGD
 import matplotlib.pyplot as plt
 
