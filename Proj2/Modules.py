@@ -1,8 +1,6 @@
 from torch import empty, Tensor, randn, manual_seed
 from math import tanh, sqrt, log, exp
 
-#torch.set_grad_enabled(False)
-
 class Module(object):
     '''
     Base Class for components of neural network
