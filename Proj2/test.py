@@ -1,19 +1,21 @@
 # -*- coding: utf-8 -*-
 from torch import rand, norm, Tensor, sign, manual_seed
 from math import pi, sqrt
-import statistics
 from Modules import Sequential, Linear, TanH, Softmax, LossMSE, CrossEntropyLoss, SGD
 import matplotlib.pyplot as plt
 
 # Dataset
 class Dataset(object):
+    '''
+        Generates a dataset for radius classification. A manual seed option is provided. 
+    '''
     def __init__(self, N, dim=2, r=1/sqrt(2*pi), center=[.5,.5], man_seed=False, test=False) :
         if man_seed==True:
             if test == True:
                 manual_seed(123)
             else :
                 manual_seed(124)
-        # Generates a set of 1,000 points sampled uniformly in [0,1]^dim
+        # Generates a set of N points sampled uniformly in [0,1]^dim
         self.points=rand(size=(N,dim))
         # Generates labels: label 0 if outside the disk centered at (0.5,0.5) of radius 1/√2π, and 1 inside
         self.distances=norm(self.points-Tensor(center), 2, dim=1)
