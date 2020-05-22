@@ -55,17 +55,17 @@ class Parameters(object):
     '''
     Class that includes the values of the parameters of the neural network, i.e. the elements beeing during the learning procedure
     Also includes the gradients being associated to the parameters.
-    An option of initialization with manual seed is provided.
+    An option of initialization with manual seed is provided as well as Xavier initialization.
     
     '''
     def __init__(self, *size, w, Xavier=False, man_seed=False):
         if man_seed==True :
             manual_seed(7)
         if w == True:
-            #sigma=1.
+            sigma = 1.
             if Xavier==True:
                 sigma = sqrt(2/(size[0]+size[1]))
-            self.value = empty(size).normal_(mean=0,std=1)
+            self.value = empty(size).normal_(mean=0,std=sigma)
         else :
             self.value = empty(size).normal_(mean=0,std=1)
         self.grad = empty(size)
@@ -136,6 +136,7 @@ class Softmax(Module):
         self.parameters=[]
     def forward(self, inp):
         self.inp = inp
+        #Regularisation constant to avoid overflow
         M = self.inp.max()
         N = sum([exp(i-M) for i in self.inp])
         self.out = Tensor([exp(i-M)/N for i in self.inp])
@@ -175,8 +176,7 @@ class Sequential(Module):
         return x
     def param(self):
         return [param.as_pair() for param in self.parameters] 
-
-# define another class for large networks??? 
+ 
             
             
 #---------------------------------- LOSS function --------------------------------
@@ -214,6 +214,7 @@ class SGD() :
         for i in range(len(self.params)):
             self.Vt.append(self.params[i].grad.clone())
     def step(self) :
+    #Optimization step defined with momentum according to Netsterov's method
         for i in range(len(self.params)):
             self.Vt[i] = self.Vt[i]*self.momentum - self.lr*self.params[i].grad
             self.params[i].value = self.params[i].value + self.Vt[i]
